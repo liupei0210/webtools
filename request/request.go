@@ -12,18 +12,18 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, f func(p *Params) 
 	err := ctx.ReadJSON(&params)
 	if err != nil {
 		log.Error(err.Error())
-		_, _ = ctx.JSON(response.Fail(err.Error()))
+		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
 	validator := validate.New(&params)
 	if !validator.Validate() {
 		log.Error(validator.Errors)
-		_, _ = ctx.JSON(response.Fail(validator.Errors.One()))
+		_ = ctx.JSON(response.Fail(validator.Errors.One()))
 		return
 	}
 	err = f(&params)
 	if err != nil {
 		log.Error(err.Error())
-		_, _ = ctx.JSON(response.Fail(err.Error()))
+		_ = ctx.JSON(response.Fail(err.Error()))
 	}
 }
