@@ -7,23 +7,22 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// ControllerTemplate is a template function for handling requests with JSON parameters.
 func ControllerTemplate[Params interface{}](ctx iris.Context, f func(p *Params) error) {
 	var params Params
-	err := ctx.ReadJSON(&params)
-	if err != nil {
-		log.Error(err.Error())
-		_ = ctx.JSON(response.Fail(err.Error()))
+	if err := ctx.ReadJSON(&params); err != nil {
+		log.Errorf("failed to read JSON: %v", err)
+		ctx.JSON(response.Fail(err.Error()))
 		return
 	}
-	validator := validate.New(&params)
-	if !validator.Validate() {
-		log.Error(validator.Errors)
-		_ = ctx.JSON(response.Fail(validator.Errors.One()))
+	v := validate.Struct(params)
+	if !v.Validate() {
+		log.Error(v.Errors)
+		ctx.JSON(response.Fail(v.Errors.One()))
 		return
 	}
-	err = f(&params)
-	if err != nil {
-		log.Error(err.Error())
-		_ = ctx.JSON(response.Fail(err.Error()))
+	if err := f(&params); err != nil {
+		log.Errorf("failed to handle request: %v", err)
+		ctx.JSON(response.Fail(err.Error()))
 	}
 }
