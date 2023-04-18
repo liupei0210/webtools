@@ -18,13 +18,13 @@ func PageTemplate[T interface{}](pageNum, pageSize int, handler func() *gorm.DB)
 }
 
 type PageReq struct {
-	PageNum  int `json:"pageNum"`
-	PageSize int `json:"pageSize"`
+	PageNum  int `json:"page_num"`
+	PageSize int `json:"page_size"`
 }
 type Page[T interface{}] struct {
 	Content     *[]T  `json:"content"`
-	CurrentSize int   `json:"currentSize"`
-	TotalSize   int64 `json:"totalSize"`
+	CurrentSize int   `json:"current_size"`
+	TotalSize   int64 `json:"total_size"`
 }
 
 func GetPageReq(number, size int) PageReq {
