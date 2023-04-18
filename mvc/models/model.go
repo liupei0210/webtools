@@ -43,20 +43,20 @@ func marshalJson(t JsonTime) ([]byte, error) {
 	return []byte(timeString), nil
 }
 
-func Model2DTO[DTO interface{}](model interface{}, handlers ...func(d *DTO)) (*DTO, error) {
-	var dto DTO
-	modelJ, err := json.Marshal(model)
+func A2B[B interface{}](a interface{}, handlers ...func(b *B)) (B, error) {
+	var b B
+	aBytes, err := json.Marshal(a)
 	if err != nil {
-		return nil, err
+		return b, err
 	}
-	err = json.Unmarshal(modelJ, &dto)
+	err = json.Unmarshal(aBytes, &b)
 	if err != nil {
-		return nil, err
+		return b, err
 	}
 	for _, f := range handlers {
-		f(&dto)
+		f(&b)
 	}
-	return &dto, nil
+	return b, nil
 }
 func AssembleMongoCursor(cur *mongo.Cursor, slicePtr interface{}) {
 	src := reflect.ValueOf(slicePtr).Elem()
