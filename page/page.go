@@ -2,12 +2,15 @@ package page
 
 import "gorm.io/gorm"
 
-func PageTemplate[T interface{}](pageNum, pageSize int, handler func() *gorm.DB) (*Page[T], error) {
+func PageTemplate[T interface{}](pageNum, pageSize int, handler func() (*gorm.DB, error)) (*Page[T], error) {
 	var total int64
 	results := make([]T, 0)
-	query := handler()
+	query, err := handler()
+	if err != nil {
+		return nil, err
+	}
 	query.Count(&total)
-	if err := query.Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&results).Error; err != nil {
+	if err = query.Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&results).Error; err != nil {
 		return nil, err
 	}
 	return &Page[T]{
