@@ -1,15 +1,11 @@
 package models
 
 import (
-	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/liupei0210/webtools/timeutil"
-	log "github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/mongo"
-	"reflect"
 	"time"
 )
 
@@ -57,19 +53,4 @@ func A2B[B interface{}](a interface{}, handlers ...func(b *B)) (B, error) {
 		f(&b)
 	}
 	return b, nil
-}
-func AssembleMongoCursor(cur *mongo.Cursor, slicePtr interface{}) {
-	src := reflect.ValueOf(slicePtr).Elem()
-	elementType := reflect.TypeOf(slicePtr).Elem().Elem()
-	arr := make([]reflect.Value, 0)
-	for cur.Next(context.Background()) {
-		e := reflect.New(elementType)
-		err := cur.Decode(e.Interface())
-		if err != nil {
-			log.Error(err)
-		}
-		arr = append(arr, e.Elem())
-	}
-	dest := reflect.Append(src, arr...)
-	src.Set(dest)
 }
