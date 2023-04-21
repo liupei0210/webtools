@@ -11,8 +11,8 @@ import (
 
 type JsonTime time.Time
 
-func (t JsonTime) MarshalJSON() ([]byte, error) {
-	timeString := fmt.Sprintf("\"%s\"", time.Time(t).Format(timeutil.TimeFormat))
+func (t *JsonTime) MarshalJSON() ([]byte, error) {
+	timeString := fmt.Sprintf("\"%s\"", time.Time(*t).Format(timeutil.TimeFormat))
 	return []byte(timeString), nil
 }
 func (t *JsonTime) UnmarshalJSON(data []byte) error {
@@ -31,8 +31,8 @@ func (t *JsonTime) Scan(value interface{}) error {
 	*t = JsonTime(times)
 	return nil
 }
-func (t JsonTime) Value() (driver.Value, error) {
-	return marshalJson(t)
+func (t *JsonTime) Value() (driver.Value, error) {
+	return marshalJson(*t)
 }
 func marshalJson(t JsonTime) ([]byte, error) {
 	timeString := fmt.Sprintf("%s", time.Time(t).Format(timeutil.TimeFormat))
