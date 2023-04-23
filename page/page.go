@@ -2,7 +2,7 @@ package page
 
 import "gorm.io/gorm"
 
-func PageTemplate[T interface{}](pageNum, pageSize int, handler func() (*gorm.DB, error)) (Page[T], error) {
+func Template[T interface{}](pageNum, pageSize int, handler func() (*gorm.DB, error)) (Page[T], error) {
 	var total int64
 	results := make([]T, pageSize)
 	query, err := handler()
@@ -20,7 +20,7 @@ func PageTemplate[T interface{}](pageNum, pageSize int, handler func() (*gorm.DB
 	}, nil
 }
 
-type PageReq struct {
+type Req struct {
 	PageNum  int `json:"page_num"`
 	PageSize int `json:"page_size"`
 }
@@ -30,8 +30,8 @@ type Page[T interface{}] struct {
 	TotalSize   int64 `json:"total_size"`
 }
 
-func GetPageReq(number, size int) PageReq {
-	return PageReq{
+func GetPageReq(number, size int) Req {
+	return Req{
 		PageNum:  number,
 		PageSize: size,
 	}
