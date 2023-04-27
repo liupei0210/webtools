@@ -9,10 +9,11 @@ func Template[T interface{}](pageNum, pageSize int, handler func() (*gorm.DB, er
 	if err != nil {
 		return Page[T]{}, err
 	}
-	if err = query.Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&results).Error; err != nil {
+	prepareQuery := query.Session(&gorm.Session{PrepareStmt: true})
+	prepareQuery.Count(&total)
+	if err = prepareQuery.Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&results).Error; err != nil {
 		return Page[T]{}, err
 	}
-	query.Count(&total)
 	return Page[T]{
 		CurrentSize: len(results),
 		TotalSize:   total,
