@@ -3,16 +3,16 @@ package page
 import "gorm.io/gorm"
 
 // Template pageNum从1开始
-func Template[T interface{}](pageNum, pageSize int, handler func() (*gorm.DB, error)) (page Page[T], err error) {
+func Template[T interface{}](req Req, handler func() (*gorm.DB, error)) (page Page[T], err error) {
 	var total int64
-	results := make([]T, pageSize)
+	results := make([]T, req.PageSize)
 	query, err := handler()
 	if err != nil {
 		return
 	}
 	prepareQuery := query.Session(&gorm.Session{PrepareStmt: true})
 	prepareQuery.Count(&total)
-	if err = prepareQuery.Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&results).Error; err != nil {
+	if err = prepareQuery.Limit(req.PageSize).Offset((req.PageNum - 1) * req.PageSize).Find(&results).Error; err != nil {
 		return
 	}
 	page = Page[T]{
