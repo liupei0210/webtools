@@ -2,23 +2,25 @@ package page
 
 import "gorm.io/gorm"
 
-func Template[T interface{}](pageNum, pageSize int, handler func() (*gorm.DB, error)) (Page[T], error) {
+// Template pageNum从1开始
+func Template[T interface{}](pageNum, pageSize int, handler func() (*gorm.DB, error)) (page Page[T], err error) {
 	var total int64
 	results := make([]T, pageSize)
 	query, err := handler()
 	if err != nil {
-		return Page[T]{}, err
+		return
 	}
 	prepareQuery := query.Session(&gorm.Session{PrepareStmt: true})
 	prepareQuery.Count(&total)
 	if err = prepareQuery.Limit(pageSize).Offset((pageNum - 1) * pageSize).Find(&results).Error; err != nil {
-		return Page[T]{}, err
+		return
 	}
-	return Page[T]{
+	page = Page[T]{
 		CurrentSize: len(results),
 		TotalSize:   total,
 		Content:     results,
-	}, nil
+	}
+	return
 }
 
 type Req struct {
