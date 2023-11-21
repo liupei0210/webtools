@@ -5,18 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/bravpei/webtools/timeutil"
 	"time"
 )
 
 type JsonTime time.Time
 
 func (t *JsonTime) MarshalJSON() ([]byte, error) {
-	timeString := fmt.Sprintf("\"%s\"", time.Time(*t).Format(timeutil.TimeFormat))
+	timeString := fmt.Sprintf("\"%s\"", time.Time(*t).Format(time.DateTime))
 	return []byte(timeString), nil
 }
 func (t *JsonTime) UnmarshalJSON(data []byte) error {
-	formatTime, err := time.ParseInLocation(fmt.Sprintf("\"%s\"", timeutil.TimeFormat), string(data), time.Local)
+	formatTime, err := time.ParseInLocation(fmt.Sprintf("\"%s\"", time.DateTime), string(data), time.Local)
 	if err != nil {
 		return err
 	}
@@ -35,7 +34,7 @@ func (t *JsonTime) Value() (driver.Value, error) {
 	return marshalJson(*t)
 }
 func marshalJson(t JsonTime) ([]byte, error) {
-	timeString := fmt.Sprintf("%s", time.Time(t).Format(timeutil.TimeFormat))
+	timeString := fmt.Sprintf("%s", time.Time(t).Format(time.DateTime))
 	return []byte(timeString), nil
 }
 
