@@ -48,7 +48,7 @@ type TimingWheel struct {
 	stop     chan struct{}
 }
 
-func (tw *TimingWheel) Start(process func(any)) {
+func (tw *TimingWheel) Start(process func(data any, tw *TimingWheel)) {
 	go func() {
 		ticker := time.NewTicker(time.Duration(tw.interval) * time.Second)
 		for {
@@ -62,7 +62,7 @@ func (tw *TimingWheel) Start(process func(any)) {
 						newTasks = append(newTasks, t)
 						continue
 					}
-					go process(t.data)
+					go process(t.data, tw)
 				}
 				tw.nodes[tw.current].tasks = newTasks
 				tw.nodes[tw.current].lock.Unlock()
