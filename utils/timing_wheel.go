@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+type TaskHandler func(data any, tw *TimingWheel)
+
 func NewTimingWheel(intervalSeconds uint32, scale uint64) (instance *TimingWheel) {
 	instance = &TimingWheel{
 		scale:    scale,
@@ -31,9 +33,16 @@ func NewTimingWheel(intervalSeconds uint32, scale uint64) (instance *TimingWheel
 }
 
 type task struct {
-	round uint64
-	data  any
+	round   uint64
+	data    any
+	handler TaskHandler
+	tw      *TimingWheel
 }
+
+func (t *task) handle() {
+	t.handler(t.data, t.tw)
+}
+
 type node struct {
 	index uint64
 	tasks []*task
@@ -48,7 +57,7 @@ type TimingWheel struct {
 	stop     chan struct{}
 }
 
-func (tw *TimingWheel) Start(process func(data any, tw *TimingWheel)) {
+func (tw *TimingWheel) Start() {
 	go func() {
 		ticker := time.NewTicker(time.Duration(tw.interval) * time.Second)
 		for {
@@ -62,7 +71,7 @@ func (tw *TimingWheel) Start(process func(data any, tw *TimingWheel)) {
 						newTasks = append(newTasks, t)
 						continue
 					}
-					go process(t.data, tw)
+					go t.handle()
 				}
 				tw.nodes[tw.current].tasks = newTasks
 				tw.nodes[tw.current].lock.Unlock()
@@ -75,7 +84,7 @@ func (tw *TimingWheel) Start(process func(data any, tw *TimingWheel)) {
 		}
 	}()
 }
-func (tw *TimingWheel) AddTask(data any, duration time.Duration) {
+func (tw *TimingWheel) AddTask(data any, handler TaskHandler, duration time.Duration) {
 	afterSeconds := uint64(duration.Seconds())
 	//在当前node为开始往后面加任务时，多计算了一个刻度，要减去
 	if afterSeconds >= uint64(tw.interval) {
@@ -84,8 +93,10 @@ func (tw *TimingWheel) AddTask(data any, duration time.Duration) {
 	index := (afterSeconds / uint64(tw.interval)) % tw.scale
 	round := (afterSeconds / uint64(tw.interval)) / tw.scale
 	t := &task{
-		round: round,
-		data:  data,
+		round:   round,
+		data:    data,
+		tw:      tw,
+		handler: handler,
 	}
 	n := tw.nodes[(tw.current+index)%tw.scale]
 	n.lock.Lock()
