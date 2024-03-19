@@ -1,7 +1,7 @@
 package request
 
 import (
-	"github.com/bravpei/webtools/response"
+	"github.com/bravpei/webtools/external/pkg/response"
 	"github.com/gookit/validate"
 	"github.com/kataras/iris/v12"
 	log "github.com/sirupsen/logrus"
