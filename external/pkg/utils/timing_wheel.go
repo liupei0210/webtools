@@ -6,14 +6,22 @@ import (
 	"time"
 )
 
-type TaskHandler func(data any, tw *TimingWheel)
+type timingWheelStatus int8
+
+const (
+	ready timingWheelStatus = iota
+	running
+	stopped
+)
+
+type TaskHandler func(data any, tc TaskContext)
 
 func NewTimingWheel(intervalSeconds uint32, scale uint64) (instance *TimingWheel) {
 	instance = &TimingWheel{
 		scale:    scale,
 		interval: intervalSeconds,
 		nodes:    make([]*node, scale),
-		stop:     make(chan struct{}),
+		status:   ready,
 	}
 	head := &node{
 		index: 0,
@@ -55,34 +63,50 @@ type TimingWheel struct {
 	nodes    []*node
 	current  uint64
 	stop     chan struct{}
+	status   timingWheelStatus
+	lock     sync.Mutex
 }
 
 func (tw *TimingWheel) Start() {
-	go func() {
-		ticker := time.NewTicker(time.Duration(tw.interval) * time.Second)
-		for {
-			select {
-			case <-ticker.C:
-				tw.nodes[tw.current].lock.Lock()
-				var newTasks []*task
-				for _, t := range tw.nodes[tw.current].tasks {
-					if t.round > 0 {
-						t.round -= 1
-						newTasks = append(newTasks, t)
-						continue
-					}
-					go t.handle()
-				}
-				tw.nodes[tw.current].tasks = newTasks
-				tw.nodes[tw.current].lock.Unlock()
-				tw.current = (tw.current + 1) % tw.scale
-			case <-tw.stop:
-				ticker.Stop()
-				log.Info("Timing wheel stopped!")
-				return
-			}
+	if tw.status == running {
+		return
+	}
+	tw.lock.Lock()
+	defer tw.lock.Unlock()
+	tw.status = running
+	tw.stop = make(chan struct{})
+	go tw.run()
+}
+func (tw *TimingWheel) run() {
+	ticker := time.NewTicker(time.Duration(tw.interval) * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			tw.tick()
+		case <-tw.stop:
+			ticker.Stop()
+			log.Info("Timing wheel stopped!")
+			return
 		}
-	}()
+	}
+}
+func (tw *TimingWheel) tick() {
+	tw.nodes[tw.current].lock.Lock()
+	task2Handle := tw.nodes[tw.current].tasks
+	tw.nodes[tw.current].tasks = nil
+	tw.nodes[tw.current].lock.Unlock()
+	for i := len(task2Handle) - 1; i >= 0; i-- {
+		if task2Handle[i].round > 0 {
+			task2Handle[i].round--
+			continue
+		}
+		go task2Handle[i].handle()
+		task2Handle = append(task2Handle[:i], task2Handle[i+1:]...)
+	}
+	tw.nodes[tw.current].lock.Lock()
+	tw.nodes[tw.current].tasks = append(tw.nodes[tw.current].tasks, task2Handle...)
+	tw.nodes[tw.current].lock.Unlock()
+	tw.current = (tw.current + 1) % tw.scale
 }
 func (tw *TimingWheel) AddTask(data any, handler TaskHandler, duration time.Duration) {
 	afterSeconds := uint64(duration.Seconds())
@@ -104,5 +128,16 @@ func (tw *TimingWheel) AddTask(data any, handler TaskHandler, duration time.Dura
 	n.tasks = append(n.tasks, t)
 }
 func (tw *TimingWheel) Stop() {
-	close(tw.stop)
+	if tw.status == running {
+		tw.lock.Lock()
+		if tw.status == running {
+			close(tw.stop)
+			tw.status = stopped
+		}
+		tw.lock.Unlock()
+	}
+}
+
+type TaskContext interface {
+	AddTask(data any, handler TaskHandler, duration time.Duration)
 }
