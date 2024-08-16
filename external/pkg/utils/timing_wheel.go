@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -15,13 +16,28 @@ const (
 )
 
 type TaskHandler func(data any, tc TaskContext)
+type SubmitErrorHandler func(data any, err error)
 
 func NewTimingWheel(intervalSeconds uint32, scale uint64) (instance *TimingWheel) {
+	return newTimingWheel(intervalSeconds, scale, false, 0, nil, nil)
+}
+func NewTimingWheelWithPool(intervalSeconds uint32, scale uint64, poolSize int, submitErrorHandler SubmitErrorHandler, options ...ants.Option) (instance *TimingWheel) {
+	return newTimingWheel(intervalSeconds, scale, true, poolSize, submitErrorHandler, options...)
+}
+func newTimingWheel(intervalSeconds uint32, scale uint64, usePool bool, poolSize int, submitErrorHandler SubmitErrorHandler, options ...ants.Option) (instance *TimingWheel) {
 	instance = &TimingWheel{
 		scale:    scale,
 		interval: intervalSeconds,
 		nodes:    make([]*node, scale),
 		status:   ready,
+	}
+	if usePool {
+		instance.submitErrHandler = submitErrorHandler
+		pool, err := ants.NewPool(poolSize, options...)
+		if err != nil {
+			panic(err)
+		}
+		instance.pool = pool
 	}
 	head := &node{
 		index: 0,
@@ -58,13 +74,15 @@ type node struct {
 	next  *node
 }
 type TimingWheel struct {
-	interval uint32
-	scale    uint64
-	nodes    []*node
-	current  uint64
-	stop     chan struct{}
-	status   timingWheelStatus
-	lock     sync.Mutex
+	interval         uint32
+	scale            uint64
+	nodes            []*node
+	current          uint64
+	stop             chan struct{}
+	status           timingWheelStatus
+	lock             sync.Mutex
+	pool             *ants.Pool
+	submitErrHandler SubmitErrorHandler
 }
 
 func (tw *TimingWheel) Start() {
@@ -100,7 +118,17 @@ func (tw *TimingWheel) tick() {
 			task2Handle[i].round--
 			continue
 		}
-		go task2Handle[i].handle()
+		if tw.pool != nil {
+			if err := tw.pool.Submit(func() {
+				task2Handle[i].handle()
+			}); err != nil {
+				if tw.submitErrHandler != nil {
+					tw.submitErrHandler(task2Handle[i].data, err)
+				}
+			}
+		} else {
+			go task2Handle[i].handle()
+		}
 		task2Handle = append(task2Handle[:i], task2Handle[i+1:]...)
 	}
 	tw.nodes[tw.current].lock.Lock()
