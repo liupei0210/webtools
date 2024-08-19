@@ -7,6 +7,7 @@ toolchain go1.21.4
 require (
 	github.com/gookit/validate v1.5.2
 	github.com/kataras/iris/v12 v12.2.10
+	github.com/panjf2000/ants/v2 v2.10.0
 	github.com/sirupsen/logrus v1.9.3
 	gorm.io/gorm v1.25.8
 )
@@ -40,7 +41,6 @@ require (
 	github.com/mailgun/raymond/v2 v2.0.48 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.26 // indirect
-	github.com/panjf2000/ants/v2 v2.10.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/schollz/closestmatch v2.1.0+incompatible // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect

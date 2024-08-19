@@ -119,8 +119,9 @@ func (tw *TimingWheel) tick() {
 			continue
 		}
 		if tw.pool != nil {
+			t := task2Handle[i]
 			if err := tw.pool.Submit(func() {
-				task2Handle[i].handle()
+				t.handle()
 			}); err != nil {
 				if tw.submitErrHandler != nil {
 					tw.submitErrHandler(task2Handle[i].data, err)
