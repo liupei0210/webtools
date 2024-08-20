@@ -1,10 +1,9 @@
 module github.com/bravpei/webtools
 
-go 1.21
-
-toolchain go1.21.4
+go 1.22
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/gookit/validate v1.5.2
 	github.com/kataras/iris/v12 v12.2.10
 	github.com/panjf2000/ants/v2 v2.10.0
@@ -22,7 +21,6 @@ require (
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/flosch/pongo2/v4 v4.0.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gomarkdown/markdown v0.0.0-20231222211730-1d6d20845b47 // indirect
 	github.com/google/uuid v1.6.0 // indirect
