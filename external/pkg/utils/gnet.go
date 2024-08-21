@@ -155,7 +155,10 @@ func (w *wsCtx) handleEOFError(err error) error {
 
 // HandleWsTraffic The f method you provide needs to handle asynchronous data processing; otherwise, it will lead to server blocking.
 func (GNetUtil) HandleWsTraffic(c gnet.Conn, f func(message []byte)) (err error) {
-	ctx := c.Context().(*wsCtx)
+	ctx, ok := c.Context().(*wsCtx)
+	if !ok {
+		return errors.New(" The gnet context is not a WebSocket context")
+	}
 	if c.InboundBuffered() <= 0 {
 		return
 	}
