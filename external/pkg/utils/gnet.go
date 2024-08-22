@@ -6,6 +6,7 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"strings"
 )
@@ -74,7 +75,7 @@ func (w *wsCtx) read(c gnet.Conn) (payloads [][]byte, err error) {
 		if message.OpCode.IsControl() {
 			err = wsutil.HandleClientControlMessage(c, message)
 			if err != nil {
-				return
+				log.Debug(err)
 			}
 			continue
 		}
