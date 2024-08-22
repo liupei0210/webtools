@@ -50,6 +50,7 @@ type wsCtx struct {
 	upgraded  bool
 	curHeader *ws.Header
 	cachedBuf bytes.Buffer
+	opCode    *ws.OpCode
 }
 
 func (w *wsCtx) GetType() string {
@@ -103,45 +104,32 @@ func (w *wsCtx) readFrame(c gnet.Conn) (messages []wsutil.Message, err error) {
 				return
 			}
 			var header ws.Header
-			var peek []byte
-			peek, err = c.Peek(-1)
-			if err != nil {
-				return
-			}
-			reader := bytes.NewReader(peek)
-			header, err = ws.ReadHeader(reader)
+			header, err = ws.ReadHeader(c)
 			if err != nil {
 				err = w.handleEOFError(err)
 				return
 			}
-			_, err = c.Discard(c.InboundBuffered() - reader.Len())
-			if err != nil {
-				return
-			}
 			w.curHeader = &header
-			err = ws.WriteHeader(&w.cachedBuf, header)
+			if w.opCode == nil {
+				w.opCode = &header.OpCode
+			}
+		}
+		if w.curHeader.Length > 0 {
+			if int64(c.InboundBuffered()) < w.curHeader.Length {
+				return
+			}
+			_, err = io.CopyN(&w.cachedBuf, c, w.curHeader.Length)
 			if err != nil {
 				return
 			}
 		}
-		dataLen := (int)(w.curHeader.Length)
-		if dataLen > 0 {
-			if c.InboundBuffered() < dataLen {
-				return
-			}
-			_, err = io.CopyN(&w.cachedBuf, c, int64(dataLen))
-			if err != nil {
-				return
-			}
-
-		}
-		//处理完整消息
 		if w.curHeader.Fin {
-			messages, err = wsutil.ReadClientMessage(&w.cachedBuf, messages)
-			if err != nil {
-				return
-			}
+			messages = append(messages, wsutil.Message{
+				OpCode:  *w.opCode,
+				Payload: w.cachedBuf.Bytes(),
+			})
 			w.cachedBuf.Reset()
+			w.opCode = nil
 		}
 		w.curHeader = nil
 	}
