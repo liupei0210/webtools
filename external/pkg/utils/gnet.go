@@ -57,22 +57,9 @@ func (w *wsCtx) GetType() string {
 	return "ws"
 }
 func (w *wsCtx) upgrade(c gnet.Conn) (err error) {
-	var peek []byte
-	peek, err = c.Peek(-1)
-	if err != nil {
-		return
-	}
-	reader := bytes.NewReader(peek)
-	_, err = ws.Upgrade(struct {
-		io.Reader
-		io.Writer
-	}{reader, c})
+	_, err = ws.Upgrade(c)
 	if err != nil {
 		err = w.handleEOFError(err)
-		return
-	}
-	_, err = c.Discard(c.InboundBuffered() - reader.Len())
-	if err != nil {
 		return
 	}
 	w.upgraded = true
@@ -115,11 +102,22 @@ func (w *wsCtx) readFrame(c gnet.Conn) (messages []wsutil.Message, err error) {
 			}
 		}
 		if w.curHeader.Length > 0 {
-			if int64(c.InboundBuffered()) < w.curHeader.Length {
+			dataLength := int(w.curHeader.Length)
+			if c.InboundBuffered() < dataLength {
 				return
 			}
-			_, err = io.CopyN(&w.cachedBuf, c, w.curHeader.Length)
-			if err != nil {
+			var peek []byte
+			if peek, err = c.Peek(dataLength); err != nil {
+				err = w.handleEOFError(err)
+				return
+			}
+			cipherReader := wsutil.NewCipherReader(bytes.NewReader(peek), w.curHeader.Mask)
+			if _, err = io.CopyN(&w.cachedBuf, cipherReader, w.curHeader.Length); err != nil {
+				err = w.handleEOFError(err)
+				return
+			}
+			if _, err = c.Discard(dataLength); err != nil {
+				err = w.handleEOFError(err)
 				return
 			}
 		}
