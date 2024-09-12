@@ -28,12 +28,18 @@ func (wrapper *HttpClientWrapper) Get(api string, header map[string]string, quer
 	}
 	return wrapper.client.Do(request)
 }
-func (wrapper *HttpClientWrapper) Post(api string, header map[string]string, queryParams url.Values, body *[]byte) (*http.Response, error) {
+func (wrapper *HttpClientWrapper) Post(api string, header map[string]string, queryParams url.Values, body []byte) (*http.Response, error) {
+	return wrapper.request(api, http.MethodPost, header, queryParams, body)
+}
+func (wrapper *HttpClientWrapper) Put(api string, header map[string]string, queryParams url.Values, body []byte) (*http.Response, error) {
+	return wrapper.request(api, http.MethodPut, header, queryParams, body)
+}
+func (wrapper *HttpClientWrapper) request(api, method string, header map[string]string, queryParams url.Values, body []byte) (*http.Response, error) {
 	var reader io.Reader
 	if body != nil {
-		reader = bytes.NewReader(*body)
+		reader = bytes.NewReader(body)
 	}
-	request, err := wrapper.assembleRequest(http.MethodPost, api, header, queryParams, reader)
+	request, err := wrapper.assembleRequest(method, api, header, queryParams, reader)
 	if err != nil {
 		return nil, err
 	}
