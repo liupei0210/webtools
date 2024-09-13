@@ -61,12 +61,12 @@ func (wrapper *HttpClientWrapper) assembleRequest(method string, api string, hea
 }
 func HandleResponse[T any](response *http.Response) (body T, err error) {
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		err = errors.New(fmt.Sprintf("reponse:%s, status not 200,status:%d", response.Request.URL.Path, response.StatusCode))
-		return
-	}
 	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
+		return
+	}
+	if response.StatusCode != http.StatusOK {
+		err = errors.New(fmt.Sprintf("reponse:%s, status not 200,status:%d,body:%s", response.Request.URL.Path, response.StatusCode, string(bodyBytes)))
 		return
 	}
 	err = json.Unmarshal(bodyBytes, &body)
