@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,25 +22,31 @@ func NewHttpClientWrapper(domain string) *HttpClientWrapper {
 		client: http.DefaultClient,
 	}
 }
-func (wrapper *HttpClientWrapper) Get(api string, header map[string]string, queryParams url.Values) (*http.Response, error) {
+func (wrapper *HttpClientWrapper) Get(api string, header map[string]string, queryParams url.Values, ctx ...context.Context) (*http.Response, error) {
 	request, err := wrapper.assembleRequest(http.MethodGet, api, header, queryParams, nil)
 	if err != nil {
 		return nil, err
 	}
 	return wrapper.client.Do(request)
 }
-func (wrapper *HttpClientWrapper) Post(api string, header map[string]string, queryParams url.Values, body []byte) (*http.Response, error) {
+func (wrapper *HttpClientWrapper) Post(api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
 	return wrapper.request(api, http.MethodPost, header, queryParams, body)
 }
-func (wrapper *HttpClientWrapper) Put(api string, header map[string]string, queryParams url.Values, body []byte) (*http.Response, error) {
+func (wrapper *HttpClientWrapper) Put(api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
 	return wrapper.request(api, http.MethodPut, header, queryParams, body)
 }
-func (wrapper *HttpClientWrapper) request(api, method string, header map[string]string, queryParams url.Values, body []byte) (*http.Response, error) {
+func (wrapper *HttpClientWrapper) request(api, method string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
 	var reader io.Reader
 	if body != nil {
 		reader = bytes.NewReader(body)
 	}
-	request, err := wrapper.assembleRequest(method, api, header, queryParams, reader)
+	var request *http.Request
+	var err error
+	if len(ctx) > 0 {
+		request, err = wrapper.assembleRequestWithContext(ctx[0], method, api, header, queryParams, reader)
+	} else {
+		request, err = wrapper.assembleRequest(method, api, header, queryParams, reader)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +58,20 @@ func (wrapper *HttpClientWrapper) assembleRequest(method string, api string, hea
 		apiUrl = apiUrl + "?" + queryParams.Encode()
 	}
 	request, err := http.NewRequest(method, apiUrl, body)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range header {
+		request.Header.Set(key, value)
+	}
+	return request, nil
+}
+func (wrapper *HttpClientWrapper) assembleRequestWithContext(ctx context.Context, method string, api string, header map[string]string, queryParams url.Values, body io.Reader) (*http.Request, error) {
+	apiUrl := wrapper.Domain + api
+	if queryParams != nil {
+		apiUrl = apiUrl + "?" + queryParams.Encode()
+	}
+	request, err := http.NewRequestWithContext(ctx, method, apiUrl, body)
 	if err != nil {
 		return nil, err
 	}
