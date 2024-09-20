@@ -20,7 +20,7 @@ func (JwtUtil) Generate(customClaims jwt.Claims, signKey []byte) (string, error)
 func (JwtUtil) Parse(tokenStr string, signKey []byte) (jwt.Claims, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return signKey, nil
 	})
