@@ -26,7 +26,7 @@ func (JwtUtil) Parse(tokenStr string, signKey []byte) (jwt.Claims, error) {
 		return signKey, nil
 	})
 	if err != nil || !token.Valid {
-		return nil, errors.Join(err, errors.New("token is valid"))
+		return nil, errors.Join(err, errors.New("invalid token"))
 	}
 	return token.Claims, nil
 }
