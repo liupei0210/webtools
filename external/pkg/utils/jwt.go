@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -24,8 +25,8 @@ func (JwtUtil) Parse(tokenStr string, signKey []byte) (jwt.Claims, error) {
 		}
 		return signKey, nil
 	})
-	if err != nil {
-		return nil, err
+	if err != nil || !token.Valid {
+		return nil, errors.Join(err, errors.New("token is valid"))
 	}
 	return token.Claims, nil
 }

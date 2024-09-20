@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 )
 
@@ -19,6 +18,5 @@ func TestGetJwtUtil(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	strings.SplitN()
 	fmt.Println(claims)
 }
