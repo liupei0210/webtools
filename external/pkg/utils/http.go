@@ -23,17 +23,13 @@ func NewHttpClientWrapper(domain string) *HttpClientWrapper {
 	}
 }
 func (wrapper *HttpClientWrapper) Get(api string, header map[string]string, queryParams url.Values, ctx ...context.Context) (*http.Response, error) {
-	request, err := wrapper.assembleRequest(http.MethodGet, api, header, queryParams, nil)
-	if err != nil {
-		return nil, err
-	}
-	return wrapper.client.Do(request)
+	return wrapper.request(http.MethodGet, api, header, queryParams, nil, ctx...)
 }
 func (wrapper *HttpClientWrapper) Post(api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
-	return wrapper.request(api, http.MethodPost, header, queryParams, body)
+	return wrapper.request(api, http.MethodPost, header, queryParams, body, ctx...)
 }
 func (wrapper *HttpClientWrapper) Put(api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
-	return wrapper.request(api, http.MethodPut, header, queryParams, body)
+	return wrapper.request(api, http.MethodPut, header, queryParams, body, ctx...)
 }
 func (wrapper *HttpClientWrapper) request(api, method string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
 	var reader io.Reader
