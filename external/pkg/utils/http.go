@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
@@ -35,6 +36,7 @@ func HandleResponse[T any](response *http.Response) (body T, err error) {
 	if err != nil {
 		return
 	}
+	log.Debugf("body: %s", string(bodyBytes))
 	if response.StatusCode != http.StatusOK {
 		err = errors.New(fmt.Sprintf("reponse:%s, status not 200,status:%d,body:%s", response.Request.URL.Path, response.StatusCode, string(bodyBytes)))
 		return
