@@ -36,7 +36,10 @@ func HandleResponse[T any](response *http.Response) (body T, err error) {
 	if err != nil {
 		return
 	}
-	log.Debugf("body: %s", string(bodyBytes))
+	if log.GetLevel() == log.DebugLevel {
+		requestBody, _ := io.ReadAll(response.Request.Body)
+		log.Debugf("url:%s,requestBody:%s,responseStatus:%d,responseBody: %s", response.Request.URL, string(requestBody), response.StatusCode, string(bodyBytes))
+	}
 	if response.StatusCode != http.StatusOK {
 		err = errors.New(fmt.Sprintf("reponse:%s, status not 200,status:%d,body:%s", response.Request.URL.Path, response.StatusCode, string(bodyBytes)))
 		return
