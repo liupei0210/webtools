@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type HttpClientWrapper struct {
@@ -96,10 +97,20 @@ var request = func(method, domain, api string, header map[string]string, queryPa
 	return http.DefaultClient.Do(req)
 }
 
-func DoRequest[ResponseStruct any](method, domain, api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (resStruct ResponseStruct, err error) {
-	response, err := request(method, domain, api, header, queryParams, body, ctx...)
-	if err != nil {
-		return
+func DoRequest[ResponseStruct any](method, domain, api string, header map[string]string, queryParams url.Values, body []byte, expiredTime ...time.Duration) (resStruct ResponseStruct, err error) {
+	if len(expiredTime) > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), expiredTime[0])
+		defer cancel()
+		response, err := request(method, domain, api, header, queryParams, body, ctx)
+		if err != nil {
+			return
+		}
+		return HandleResponse[ResponseStruct](response)
+	} else {
+		response, err := request(method, domain, api, header, queryParams, body)
+		if err != nil {
+			return
+		}
+		return HandleResponse[ResponseStruct](response)
 	}
-	return HandleResponse[ResponseStruct](response)
 }
