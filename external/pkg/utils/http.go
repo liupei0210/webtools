@@ -98,16 +98,17 @@ var request = func(method, domain, api string, header map[string]string, queryPa
 }
 
 func DoRequest[ResponseStruct any](method, domain, api string, header map[string]string, queryParams url.Values, body []byte, expiredTime ...time.Duration) (resStruct ResponseStruct, err error) {
+	var response *http.Response
 	if len(expiredTime) > 0 {
 		ctx, cancel := context.WithTimeout(context.Background(), expiredTime[0])
 		defer cancel()
-		response, err := request(method, domain, api, header, queryParams, body, ctx)
+		response, err = request(method, domain, api, header, queryParams, body, ctx)
 		if err != nil {
 			return
 		}
 		return HandleResponse[ResponseStruct](response)
 	} else {
-		response, err := request(method, domain, api, header, queryParams, body)
+		response, err = request(method, domain, api, header, queryParams, body)
 		if err != nil {
 			return
 		}
