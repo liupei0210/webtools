@@ -14,23 +14,118 @@ import (
 )
 
 type HttpClientWrapper struct {
-	Domain string
+	Domain     string
+	client     *http.Client
+	timeout    time.Duration
+	retryTimes int
+	retryDelay time.Duration
 }
 
-func NewHttpClientWrapper(domain string) *HttpClientWrapper {
-	return &HttpClientWrapper{
-		Domain: domain,
+type Option func(*HttpClientWrapper)
+
+func WithTimeout(timeout time.Duration) Option {
+	return func(w *HttpClientWrapper) {
+		w.timeout = timeout
 	}
 }
-func (wrapper *HttpClientWrapper) Get(api string, header map[string]string, queryParams url.Values, ctx ...context.Context) (*http.Response, error) {
-	return request(http.MethodGet, wrapper.Domain, api, header, queryParams, nil, ctx...)
+
+func WithRetry(times int, delay time.Duration) Option {
+	return func(w *HttpClientWrapper) {
+		w.retryTimes = times
+		w.retryDelay = delay
+	}
 }
-func (wrapper *HttpClientWrapper) Post(api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
-	return request(http.MethodPost, wrapper.Domain, api, header, queryParams, body, ctx...)
+
+func NewHttpClientWrapper(domain string, opts ...Option) *HttpClientWrapper {
+	wrapper := &HttpClientWrapper{
+		Domain:     domain,
+		timeout:    10 * time.Second,
+		retryTimes: 3,
+		retryDelay: time.Second,
+	}
+
+	for _, opt := range opts {
+		opt(wrapper)
+	}
+
+	wrapper.client = &http.Client{
+		Timeout: wrapper.timeout,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 100,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
+
+	return wrapper
 }
-func (wrapper *HttpClientWrapper) Put(api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
-	return request(http.MethodPut, wrapper.Domain, api, header, queryParams, body, ctx...)
+
+func (w *HttpClientWrapper) doWithRetry(req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+
+	for i := 0; i <= w.retryTimes; i++ {
+		resp, err = w.client.Do(req)
+		if err == nil {
+			return resp, nil
+		}
+
+		if i < w.retryTimes {
+			time.Sleep(w.retryDelay)
+			continue
+		}
+	}
+
+	return nil, fmt.Errorf("请求失败(重试%d次): %v", w.retryTimes, err)
 }
+
+func (w *HttpClientWrapper) Get(api string, header map[string]string, queryParams url.Values, ctx ...context.Context) (*http.Response, error) {
+	return w.request(http.MethodGet, api, header, queryParams, nil, ctx...)
+}
+
+func (w *HttpClientWrapper) Post(api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
+	return w.request(http.MethodPost, api, header, queryParams, body, ctx...)
+}
+
+func (w *HttpClientWrapper) request(method, api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+
+	apiURL := w.Domain + api
+	if queryParams != nil {
+		apiURL = apiURL + "?" + queryParams.Encode()
+	}
+
+	var req *http.Request
+	var err error
+
+	if len(ctx) > 0 {
+		req, err = http.NewRequestWithContext(ctx[0], method, apiURL, reader)
+	} else {
+		req, err = http.NewRequest(method, apiURL, reader)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置通用header
+	req.Header.Set("Content-Type", "application/json")
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
+
+	log.WithFields(log.Fields{
+		"method": method,
+		"url":    apiURL,
+		"body":   string(body),
+	}).Debug("发送HTTP请求")
+
+	return w.doWithRetry(req)
+}
+
 func HandleResponse[T any](response *http.Response) (body T, err error) {
 	defer response.Body.Close()
 	bodyBytes, err := io.ReadAll(response.Body)
@@ -46,72 +141,23 @@ func HandleResponse[T any](response *http.Response) (body T, err error) {
 	return
 }
 
-var assembleRequest = func(method, domain, api string, header map[string]string, queryParams url.Values, body io.Reader) (*http.Request, error) {
-	apiUrl := domain + api
-	if queryParams != nil {
-		apiUrl = apiUrl + "?" + queryParams.Encode()
-	}
-	request, err := http.NewRequest(method, apiUrl, body)
-	if err != nil {
-		return nil, err
-	}
-	for key, value := range header {
-		request.Header.Set(key, value)
-	}
-	return request, nil
-}
-var assembleRequestWithContext = func(ctx context.Context, method, domain, api string, header map[string]string, queryParams url.Values, body io.Reader) (*http.Request, error) {
-	apiUrl := domain + api
-	if queryParams != nil {
-		apiUrl = apiUrl + "?" + queryParams.Encode()
-	}
-	request, err := http.NewRequestWithContext(ctx, method, apiUrl, body)
-	if err != nil {
-		return nil, err
-	}
-	for key, value := range header {
-		request.Header.Set(key, value)
-	}
-	return request, nil
-}
-var request = func(method, domain, api string, header map[string]string, queryParams url.Values, body []byte, ctx ...context.Context) (*http.Response, error) {
-	var reader io.Reader
-	if body != nil {
-		reader = bytes.NewReader(body)
-	}
-	var req *http.Request
-	var err error
-	if len(ctx) > 0 {
-		req, err = assembleRequestWithContext(ctx[0], method, domain, api, header, queryParams, reader)
-	} else {
-		req, err = assembleRequest(method, domain, api, header, queryParams, reader)
-	}
-	if body != nil {
-		log.Debugf("url:%s,requestBody:%s", req.URL.String(), string(body))
-	} else {
-		log.Debugf("url:%s", req.URL.String())
-	}
-	if err != nil {
-		return nil, err
-	}
-	return http.DefaultClient.Do(req)
-}
-
 func DoRequest[ResponseStruct any](method, domain, api string, header map[string]string, queryParams url.Values, body []byte, expiredTime ...time.Duration) (resStruct ResponseStruct, err error) {
-	var response *http.Response
+	wrapper := NewHttpClientWrapper(domain)
 	if len(expiredTime) > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), expiredTime[0])
-		defer cancel()
-		response, err = request(method, domain, api, header, queryParams, body, ctx)
-		if err != nil {
-			return
-		}
-		return HandleResponse[ResponseStruct](response)
-	} else {
-		response, err = request(method, domain, api, header, queryParams, body)
-		if err != nil {
-			return
-		}
-		return HandleResponse[ResponseStruct](response)
+		wrapper.timeout = expiredTime[0]
 	}
+
+	ctx := context.Background()
+	if len(expiredTime) > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, expiredTime[0])
+		defer cancel()
+	}
+
+	resp, err := wrapper.request(method, api, header, queryParams, body, ctx)
+	if err != nil {
+		return
+	}
+
+	return HandleResponse[ResponseStruct](resp)
 }
