@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -10,6 +11,8 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -44,10 +47,8 @@ func WithMaxMessageSize(size int64) GNetUtilOption {
 }
 
 // WithTimeouts 设置超时时间
-func WithTimeouts(read, write, handshake time.Duration) GNetUtilOption {
+func WithTimeouts(handshake time.Duration) GNetUtilOption {
 	return func(c *GNetConfig) {
-		c.ReadTimeout = read
-		c.WriteTimeout = write
 		c.HandshakeTimeout = handshake
 	}
 }
@@ -56,8 +57,6 @@ func WithTimeouts(read, write, handshake time.Duration) GNetUtilOption {
 func NewGNetUtil(opts ...GNetUtilOption) *GNetUtil {
 	config := &GNetConfig{
 		MaxMessageSize:   maxMessageSize,
-		ReadTimeout:      time.Second * 30,
-		WriteTimeout:     time.Second * 30,
 		HandshakeTimeout: time.Second * 10,
 	}
 
@@ -129,6 +128,8 @@ type wsCtx struct {
 	config    *GNetConfig
 	conn      gnet.Conn
 	mutex     sync.Mutex
+	headers   http.Header // 存储HTTP Header
+	query     url.Values  // 存储Query参数
 }
 
 func (w *wsCtx) GetType() string {
@@ -147,7 +148,17 @@ func (w *wsCtx) Write(data []byte) error {
 		return errors.New("connection not upgraded")
 	}
 
-	return wsutil.WriteClientText(w.conn, data)
+	return wsutil.WriteServerText(w.conn, data)
+}
+
+// GetHeaders 获取HTTP Header
+func (w *wsCtx) GetHeaders() http.Header {
+	return w.headers
+}
+
+// GetQuery 获取Query参数
+func (w *wsCtx) GetQuery() url.Values {
+	return w.query
 }
 
 // upgrade WebSocket握手升级
@@ -157,8 +168,28 @@ func (w *wsCtx) upgrade(c gnet.Conn) error {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := ws.Upgrade(c)
-		done <- err
+		// 解析HTTP请求
+		peek, err := c.Peek(-1)
+		if err != nil {
+			done <- err
+			return
+		}
+		req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(peek)))
+		if err != nil {
+			done <- fmt.Errorf("read http request failed: %v", err)
+			return
+		}
+
+		// 保存HTTP Header和Query参数
+		w.headers = req.Header
+		w.query = req.URL.Query()
+		_, err = ws.Upgrade(c)
+		if err != nil {
+			done <- err
+			return
+		}
+		log.Debug("WebSocket upgrade successful")
+		done <- nil
 	}()
 
 	select {
@@ -184,7 +215,7 @@ func (w *wsCtx) read(c gnet.Conn) ([][]byte, error) {
 	var payloads [][]byte
 	for _, message := range messages {
 		if message.OpCode.IsControl() {
-			if err := wsutil.HandleClientControlMessage(c, message); err != nil {
+			if err = wsutil.HandleClientControlMessage(c, message); err != nil {
 				log.Debugf("handle control message error: %v", err)
 			}
 			continue
@@ -233,12 +264,6 @@ func (w *wsCtx) readFrame(c gnet.Conn) ([]wsutil.Message, error) {
 	var messages []wsutil.Message
 
 	for {
-		// 设置读取超时
-		deadline := time.Now().Add(w.config.ReadTimeout)
-		if err := c.SetReadDeadline(deadline); err != nil {
-			return nil, fmt.Errorf("set read deadline failed: %v", err)
-		}
-
 		// 读取头部
 		if w.curHeader == nil {
 			if c.InboundBuffered() < ws.MinHeaderSize {
@@ -310,5 +335,3 @@ func (w *wsCtx) readFrame(c gnet.Conn) ([]wsutil.Message, error) {
 
 	return messages, nil
 }
-
-// 其他辅助方法保持不变...
