@@ -33,50 +33,52 @@ func WithRefreshTime(d time.Duration) JwtOption {
 	}
 }
 
-func NewJwtUtil(opts ...JwtOption) *JwtUtil {
+func NewJwtUtil(opts ...JwtOption) (*JwtUtil, error) {
 	ju := &JwtUtil{
 		signKey:     []byte("default_key"),
-		expireTime:  24 * time.Hour,
-		refreshTime: 7 * 24 * time.Hour,
+		expireTime:  7 * 24 * time.Hour,
+		refreshTime: 24 * time.Hour,
 	}
 
 	for _, opt := range opts {
 		opt(ju)
 	}
 
-	return ju
+	// 检查 refreshTime 是否小于 expireTime
+	if ju.refreshTime >= ju.expireTime {
+		return nil, errors.New("refreshTime must be less than expireTime")
+	}
+
+	// 检查 signKey 是否为空
+	if len(ju.signKey) == 0 {
+		return nil, errors.New("signKey cannot be empty")
+	}
+
+	return ju, nil
 }
 
-func (j *JwtUtil) Generate(claims jwt.Claims) (string, error) {
+func (j *JwtUtil) Generate(info any) (string, error) {
+	claims := jwt.MapClaims{"exp": float64(time.Now().Add(j.expireTime).Unix()), "info": info}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(j.signKey)
 }
 
-func (j *JwtUtil) Parse(tokenStr string) (jwt.Claims, error) {
+func (j *JwtUtil) Parse(tokenStr string) (info any, err error) {
+	err = errors.New("invalid token")
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return j.signKey, nil
 	})
-
 	if err != nil {
-		return nil, fmt.Errorf("解析token失败: %v", err)
+		return nil, fmt.Errorf("failed to parse token: %v", err)
 	}
-
 	if !token.Valid {
-		return nil, errors.New("无效的token")
+		return
 	}
-
-	return token.Claims, nil
-}
-
-func (j *JwtUtil) NeedRefresh(claims jwt.Claims) bool {
-	if standardClaims, ok := claims.(jwt.RegisteredClaims); ok {
-		if exp := standardClaims.ExpiresAt; exp != nil {
-			remaining := time.Until(exp.Time)
-			return remaining < j.refreshTime
-		}
+	if mapClaim, ok := token.Claims.(jwt.MapClaims); ok {
+		return mapClaim["info"], nil
 	}
-	return false
+	return
 }
