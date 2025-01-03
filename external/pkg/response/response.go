@@ -17,10 +17,10 @@ type Result struct {
 }
 
 var statusMessages = map[Status]string{
-	success:         "操作成功",
-	failure:         "操作失败",
-	validationError: "参数验证失败",
-	serverError:     "服务器内部错误",
+	success:         "success",
+	failure:         "failure",
+	validationError: "validationError",
+	serverError:     "serverError",
 }
 
 func Succeed(data interface{}) Result {

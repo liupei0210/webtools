@@ -25,24 +25,24 @@ const (
 func ControllerTemplate[Params interface{}](ctx iris.Context, paramType paramType, f func(p Params) (interface{}, error)) {
 	var params Params
 
-	// 参数解析
+	// Parameter parsing
 	if err := parseParams(ctx, paramType, &params); err != nil {
-		log.Errorf("参数解析失败: %v", err)
+		log.Errorf("Failed to parse parameters: %v", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
 
-	// 参数验证
+	// Parameter validation
 	if err := validateParams(params); err != nil {
-		log.Errorf("参数验证失败: %v", err)
+		log.Errorf("Failed to validate parameters: %v", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
 
-	// 业务处理
+	// Business logic processing
 	data, err := f(params)
 	if err != nil {
-		log.Errorf("业务处理失败: %v", err)
+		log.Errorf("Failed to process business logic: %v", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
@@ -67,10 +67,12 @@ func parseParams(ctx iris.Context, pType paramType, params interface{}) error {
 		err = ctx.ReadForm(params)
 	case HeaderParam:
 		err = ctx.ReadHeaders(params)
+	default:
+		err = errors.New("unhandled default case")
 	}
 
 	if err != nil {
-		return fmt.Errorf("解析%s参数失败: %v", pType, err)
+		return fmt.Errorf("failed to parse %d parameters: %v", pType, err)
 	}
 	return nil
 }
