@@ -64,7 +64,6 @@ func (j *JwtUtil) Generate(info any) (string, error) {
 }
 
 func (j *JwtUtil) Parse(tokenStr string) (info any, err error) {
-	err = errors.New("invalid token")
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -75,10 +74,12 @@ func (j *JwtUtil) Parse(tokenStr string) (info any, err error) {
 		return nil, fmt.Errorf("failed to parse token: %v", err)
 	}
 	if !token.Valid {
+		err = errors.New("invalid token")
 		return
 	}
 	if mapClaim, ok := token.Claims.(jwt.MapClaims); ok {
 		return mapClaim["info"], nil
 	}
+	err = errors.New("invalid token")
 	return
 }
