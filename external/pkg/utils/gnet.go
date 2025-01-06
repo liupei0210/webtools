@@ -127,6 +127,7 @@ type WSContext struct {
 	opCode    *ws.OpCode
 	config    *GNetConfig
 	conn      gnet.Conn
+	pongState bool
 	mutex     sync.Mutex
 	headers   http.Header // 存储HTTP Header
 	query     url.Values  // 存储Query参数
@@ -221,6 +222,12 @@ func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
 	var payloads [][]byte
 	for _, message := range messages {
 		if message.OpCode.IsControl() {
+			//心跳处理，如果有设置心跳
+			if message.OpCode == ws.OpPong {
+				if w.pongState == false {
+					w.pongState = true
+				}
+			}
 			if err = wsutil.HandleClientControlMessage(c, message); err != nil {
 				log.Debugf("handle control message error: %v", err)
 			}
