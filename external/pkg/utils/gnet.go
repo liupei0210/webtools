@@ -69,14 +69,14 @@ func NewGNetUtil(opts ...GNetUtilOption) *GNetUtil {
 
 // NewWsCtx 创建WebSocket上下文
 func (g *GNetUtil) NewWsCtx() GnetContext {
-	return &wsCtx{
+	return &WSContext{
 		config: g.config,
 	}
 }
 
 // NewTcpCtx 创建TCP上下文
 func (g *GNetUtil) NewTcpCtx() GnetContext {
-	return &tcpCtx{
+	return &TCPContext{
 		config: g.config,
 	}
 }
@@ -97,30 +97,30 @@ type GnetContext interface {
 	Write(data []byte) error
 }
 
-// tcpCtx TCP上下文实现
-type tcpCtx struct {
+// TCPContext TCP上下文实现
+type TCPContext struct {
 	conn   gnet.Conn
 	config *GNetConfig
 	mutex  sync.Mutex
 }
 
-func (t *tcpCtx) GetType() string {
+func (t *TCPContext) GetType() string {
 	return "tcp"
 }
 
-func (t *tcpCtx) Close() error {
+func (t *TCPContext) Close() error {
 	return t.conn.Close()
 }
 
-func (t *tcpCtx) Write(data []byte) error {
+func (t *TCPContext) Write(data []byte) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	_, err := t.conn.Write(data)
 	return err
 }
 
-// wsCtx WebSocket上下文实现
-type wsCtx struct {
+// WSContext WebSocket上下文实现
+type WSContext struct {
 	upgraded  bool
 	curHeader *ws.Header
 	cachedBuf bytes.Buffer
@@ -132,15 +132,15 @@ type wsCtx struct {
 	query     url.Values  // 存储Query参数
 }
 
-func (w *wsCtx) GetType() string {
+func (w *WSContext) GetType() string {
 	return "ws"
 }
 
-func (w *wsCtx) Close() error {
+func (w *WSContext) Close() error {
 	return w.conn.Close()
 }
 
-func (w *wsCtx) Write(data []byte) error {
+func (w *WSContext) Write(data []byte) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -152,17 +152,17 @@ func (w *wsCtx) Write(data []byte) error {
 }
 
 // GetHeaders 获取HTTP Header
-func (w *wsCtx) GetHeaders() http.Header {
+func (w *WSContext) GetHeaders() http.Header {
 	return w.headers
 }
 
 // GetQuery 获取Query参数
-func (w *wsCtx) GetQuery() url.Values {
+func (w *WSContext) GetQuery() url.Values {
 	return w.query
 }
 
 // upgrade WebSocket握手升级
-func (w *wsCtx) upgrade(c gnet.Conn) error {
+func (w *WSContext) upgrade(c gnet.Conn, fs ...func(ctx *WSContext) error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), w.config.HandshakeTimeout)
 	defer cancel()
 
@@ -188,6 +188,12 @@ func (w *wsCtx) upgrade(c gnet.Conn) error {
 			done <- err
 			return
 		}
+		for _, f := range fs {
+			if err = f(w); err != nil {
+				done <- err
+				return
+			}
+		}
 		log.Debug("WebSocket upgrade successful")
 		done <- nil
 	}()
@@ -206,7 +212,7 @@ func (w *wsCtx) upgrade(c gnet.Conn) error {
 }
 
 // read 读取WebSocket消息
-func (w *wsCtx) read(c gnet.Conn) ([][]byte, error) {
+func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
 	messages, err := w.readFrame(c)
 	if err != nil || messages == nil {
 		return nil, err
@@ -232,8 +238,8 @@ func (w *wsCtx) read(c gnet.Conn) ([][]byte, error) {
 }
 
 // HandleWsTraffic 处理WebSocket流量
-func (g *GNetUtil) HandleWsTraffic(c gnet.Conn, handler func(message []byte)) error {
-	ctx, ok := c.Context().(*wsCtx)
+func (g *GNetUtil) HandleWsTraffic(c gnet.Conn, handler func(message []byte), httpBusinessHandlers ...func(ctx *WSContext) error) error {
+	ctx, ok := c.Context().(*WSContext)
 	if !ok {
 		return errors.New("invalid websocket context")
 	}
@@ -243,7 +249,7 @@ func (g *GNetUtil) HandleWsTraffic(c gnet.Conn, handler func(message []byte)) er
 	}
 
 	if !ctx.upgraded {
-		if err := ctx.upgrade(c); err != nil {
+		if err := ctx.upgrade(c, httpBusinessHandlers...); err != nil {
 			return err
 		}
 	}
@@ -260,7 +266,7 @@ func (g *GNetUtil) HandleWsTraffic(c gnet.Conn, handler func(message []byte)) er
 }
 
 // readFrame 读取WebSocket帧
-func (w *wsCtx) readFrame(c gnet.Conn) ([]wsutil.Message, error) {
+func (w *WSContext) readFrame(c gnet.Conn) ([]wsutil.Message, error) {
 	var messages []wsutil.Message
 
 	for {
