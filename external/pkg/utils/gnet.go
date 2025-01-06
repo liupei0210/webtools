@@ -68,10 +68,9 @@ func NewGNetUtil(opts ...GNetUtilOption) *GNetUtil {
 }
 
 // NewWsCtx 创建WebSocket上下文
-func (g *GNetUtil) NewWsCtx(c gnet.Conn) GnetContext {
+func (g *GNetUtil) NewWsCtx() GnetContext {
 	return &WSContext{
 		config: g.config,
-		conn:   c,
 	}
 }
 
