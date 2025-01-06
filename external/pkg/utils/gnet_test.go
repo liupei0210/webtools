@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
 	log "github.com/sirupsen/logrus"
@@ -25,7 +26,11 @@ func (s *Server) OnBoot(engine gnet.Engine) (action gnet.Action) {
 	return gnet.None
 }
 func (s *Server) OnOpen(c gnet.Conn) ([]byte, gnet.Action) {
-	c.SetContext(s.gNetUtil.NewWsCtx())
+	ctx := s.gNetUtil.NewWsCtx(c)
+	c.SetContext(ctx)
+	time.AfterFunc(10*time.Second, func() {
+		s.startPing(ctx.(*WSContext))
+	})
 	atomic.AddInt64(&s.connected, 1)
 	return nil, gnet.None
 }
@@ -67,4 +72,33 @@ func TestWs(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (s *Server) startPing(ctx *WSContext) {
+	var handler func(ctx *WSContext)
+	handler = func(ctx *WSContext) {
+		if ctx.PongState == true {
+			ctx.PongState = false
+			err := ws.WriteFrame(ctx.Conn(), ws.NewPingFrame(nil))
+			if err != nil {
+				log.Error(err)
+				_ = ctx.Close()
+				return
+			}
+			time.AfterFunc(time.Second*30, func() {
+				handler(ctx)
+			})
+		} else {
+			_ = ctx.Close()
+		}
+	}
+	err := ws.WriteFrame(ctx.Conn(), ws.NewPingFrame(nil))
+	if err != nil {
+		log.Error(err)
+		_ = ctx.Close()
+		return
+	}
+	time.AfterFunc(time.Second*10, func() {
+		handler(ctx)
+	})
 }
