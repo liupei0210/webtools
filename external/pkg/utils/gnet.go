@@ -68,16 +68,18 @@ func NewGNetUtil(opts ...GNetUtilOption) *GNetUtil {
 }
 
 // NewWsCtx 创建WebSocket上下文
-func (g *GNetUtil) NewWsCtx() GnetContext {
+func (g *GNetUtil) NewWsCtx(c gnet.Conn) GnetContext {
 	return &WSContext{
 		config: g.config,
+		conn:   c,
 	}
 }
 
 // NewTcpCtx 创建TCP上下文
-func (g *GNetUtil) NewTcpCtx() GnetContext {
+func (g *GNetUtil) NewTcpCtx(c gnet.Conn) GnetContext {
 	return &TCPContext{
 		config: g.config,
+		conn:   c,
 	}
 }
 
@@ -95,6 +97,7 @@ type GnetContext interface {
 	GetType() string
 	Close() error
 	Write(data []byte) error
+	Conn() gnet.Conn
 }
 
 // TCPContext TCP上下文实现
@@ -111,7 +114,9 @@ func (t *TCPContext) GetType() string {
 func (t *TCPContext) Close() error {
 	return t.conn.Close()
 }
-
+func (t *TCPContext) Conn() gnet.Conn {
+	return t.conn
+}
 func (t *TCPContext) Write(data []byte) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -140,7 +145,9 @@ func (w *WSContext) GetType() string {
 func (w *WSContext) Close() error {
 	return w.conn.Close()
 }
-
+func (w *WSContext) Conn() gnet.Conn {
+	return w.conn
+}
 func (w *WSContext) Write(data []byte) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
