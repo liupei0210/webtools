@@ -50,13 +50,13 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, binding binding, f
 	_ = ctx.JSON(response.Succeed(data))
 }
 
-func parseParams(ctx iris.Context, pType binding, params interface{}) error {
-	if pType == NoParam || reflect.TypeOf(params) == nil {
+func parseParams(ctx iris.Context, binding binding, params interface{}) error {
+	if binding == NoParam || reflect.TypeOf(params) == nil {
 		return nil
 	}
 
 	var err error
-	switch pType {
+	switch binding {
 	case BodyParam:
 		err = ctx.ReadBody(params)
 	case PathParam:
@@ -72,7 +72,7 @@ func parseParams(ctx iris.Context, pType binding, params interface{}) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to parse %d parameters: %v", pType, err)
+		return fmt.Errorf("failed to parse %d parameters: %v", binding, err)
 	}
 	return nil
 }
