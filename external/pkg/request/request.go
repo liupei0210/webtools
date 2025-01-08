@@ -10,10 +10,10 @@ import (
 	"reflect"
 )
 
-type paramType int8
+type binding int8
 
 const (
-	NoParam paramType = iota
+	NoParam binding = iota
 	BodyParam
 	PathParam
 	QueryParam
@@ -22,11 +22,11 @@ const (
 )
 
 // ControllerTemplate is a template function for handling requests with JSON parameters.
-func ControllerTemplate[Params interface{}](ctx iris.Context, paramType paramType, f func(p Params) (interface{}, error)) {
+func ControllerTemplate[Params interface{}](ctx iris.Context, binding binding, f func(p Params) (interface{}, error)) {
 	var params Params
 
 	// Parameter parsing
-	if err := parseParams(ctx, paramType, &params); err != nil {
+	if err := parseParams(ctx, binding, &params); err != nil {
 		log.Errorf("Failed to parse parameters: %v", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
@@ -50,7 +50,7 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, paramType paramTyp
 	_ = ctx.JSON(response.Succeed(data))
 }
 
-func parseParams(ctx iris.Context, pType paramType, params interface{}) error {
+func parseParams(ctx iris.Context, pType binding, params interface{}) error {
 	if pType == NoParam || reflect.TypeOf(params) == nil {
 		return nil
 	}
