@@ -26,7 +26,7 @@ func (s *Server) OnBoot(engine gnet.Engine) (action gnet.Action) {
 	return gnet.None
 }
 func (s *Server) OnOpen(c gnet.Conn) ([]byte, gnet.Action) {
-	ctx := s.gNetUtil.NewWsCtx(c)
+	ctx := s.gNetUtil.NewWsCtx()
 	c.SetContext(ctx)
 	time.AfterFunc(10*time.Second, func() {
 		s.startPing(ctx.(*WSContext))
