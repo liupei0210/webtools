@@ -3,7 +3,6 @@ package utils
 import (
 	"fmt"
 	"github.com/panjf2000/ants/v2"
-	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
@@ -109,7 +108,7 @@ type task struct {
 func (t *task) handle() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("任务处理发生panic: %v", r)
+			GetLogger().Errorf("任务处理发生panic: %v", r)
 		}
 	}()
 	t.handler(t.data, t.tw)
@@ -194,7 +193,7 @@ func (tw *TimingWheel) run() {
 			if tw.pool != nil {
 				tw.pool.Release()
 			}
-			log.Info("时间轮已停止!")
+			GetLogger().Info("时间轮已停止!")
 			return
 		}
 	}
@@ -339,7 +338,7 @@ func (tw *TimingWheel) handleTaskError(t *task, err error) {
 	if tw.submitErrHandler != nil {
 		tw.submitErrHandler(t.data, err)
 	} else {
-		log.Errorf("提交任务到协程池失败: %v", err)
+		GetLogger().Errorf("提交任务到协程池失败: %v", err)
 	}
 }
 
@@ -347,7 +346,7 @@ func (tw *TimingWheel) reinsertTask(t *task) {
 	node := tw.nodes[(tw.current+1)%tw.scale]
 	node.lock.Lock()
 	if tw.maxTasksPerSlot > 0 && len(node.tasks) >= tw.maxTasksPerSlot {
-		log.Warnf("槽位任务数超过限制: %d", tw.maxTasksPerSlot)
+		GetLogger().Warnf("槽位任务数超过限制: %d", tw.maxTasksPerSlot)
 	}
 	node.tasks = append(node.tasks, t)
 	node.lock.Unlock()

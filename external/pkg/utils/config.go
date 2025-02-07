@@ -3,7 +3,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
@@ -48,7 +47,7 @@ func (l *ConfigLoader[T]) LoadFromPaths(paths ...string) (T, error) {
 	var lastErr error
 	for _, path := range paths {
 		if err := l.loadFromPath(path); err != nil {
-			log.Warnf("从路径 %s 加载配置失败: %v", path, err)
+			GetLogger().Warnf("从路径 %s 加载配置失败: %v", path, err)
 			lastErr = err
 			continue
 		}
@@ -83,11 +82,11 @@ func (l *ConfigLoader[T]) loadFromPath(path string) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	if err := yaml.Unmarshal(file, &l.config); err != nil {
+	if err = yaml.Unmarshal(file, &l.config); err != nil {
 		return fmt.Errorf("解析YAML失败: %v", err)
 	}
 
-	log.Infof("成功加载配置文件: %s", path)
+	GetLogger().Infof("成功加载配置文件: %s", path)
 	return nil
 }
 
@@ -142,7 +141,7 @@ func (l *ConfigLoader[T]) SaveConfig() error {
 		return fmt.Errorf("写入配置文件失败: %v", err)
 	}
 
-	log.Infof("成功保存配置到: %s", l.configPath)
+	GetLogger().Infof("成功保存配置到: %s", l.configPath)
 	return nil
 }
 

@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/bravpei/webtools/external/pkg/response"
+	"github.com/bravpei/webtools/external/pkg/utils"
 	"github.com/gookit/validate"
 	"github.com/kataras/iris/v12"
-	log "github.com/sirupsen/logrus"
 	"reflect"
 )
 
@@ -27,14 +27,14 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, binding binding, f
 
 	// Parameter parsing
 	if err := parseParams(ctx, binding, &params); err != nil {
-		log.Errorf("Failed to parse parameters: %v", err)
+		utils.GetLogger().Errorf("Failed to parse parameters: %v", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
 
 	// Parameter validation
 	if err := validateParams(params); err != nil {
-		log.Errorf("Failed to validate parameters: %v", err)
+		utils.GetLogger().Errorf("Failed to validate parameters: %v", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}
@@ -42,7 +42,7 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, binding binding, f
 	// Business logic processing
 	data, err := f(params)
 	if err != nil {
-		log.Errorf("Failed to process business logic: %v", err)
+		utils.GetLogger().Errorf("Failed to process business logic: %v", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
 	}

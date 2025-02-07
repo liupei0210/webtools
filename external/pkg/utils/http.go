@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
@@ -116,13 +115,7 @@ func (w *HttpClientWrapper) request(method, api string, header map[string]string
 	for k, v := range header {
 		req.Header.Set(k, v)
 	}
-
-	log.WithFields(log.Fields{
-		"method": method,
-		"url":    apiURL,
-		"body":   string(body),
-	}).Debug("发送HTTP请求")
-
+	GetLogger().Debugf("发送HTTP请求-method:%s url:%s body:%s", method, apiURL, string(body))
 	return w.doWithRetry(req)
 }
 
@@ -132,7 +125,7 @@ func HandleResponse[T any](response *http.Response) (body T, err error) {
 	if err != nil {
 		return
 	}
-	log.Debugf("url:%s,responseStatus:%d,responseBody: %s", response.Request.URL, response.StatusCode, string(bodyBytes))
+	GetLogger().Debugf("url:%s,responseStatus:%d,responseBody: %s", response.Request.URL, response.StatusCode, string(bodyBytes))
 	if response.StatusCode != http.StatusOK {
 		err = errors.New(fmt.Sprintf("reponse:%s, status not 200,status:%d,body:%s", response.Request.URL.Path, response.StatusCode, string(bodyBytes)))
 		return

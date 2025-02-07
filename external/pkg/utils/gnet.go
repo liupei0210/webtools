@@ -9,7 +9,6 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/panjf2000/gnet/v2"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
@@ -201,7 +200,7 @@ func (w *WSContext) upgrade(c gnet.Conn, fs ...func(ctx *WSContext) error) error
 				return
 			}
 		}
-		log.Debug("WebSocket upgrade successful")
+		GetLogger().Debug("WebSocket upgrade successful")
 		done <- nil
 	}()
 
@@ -235,7 +234,7 @@ func (w *WSContext) read(c gnet.Conn) ([][]byte, error) {
 				}
 			}
 			if err = wsutil.HandleClientControlMessage(c, message); err != nil {
-				log.Debugf("handle control message error: %v", err)
+				GetLogger().Debugf("handle control message error: %v", err)
 			}
 			continue
 		}

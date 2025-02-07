@@ -9,7 +9,6 @@ require (
 	github.com/kataras/iris/v12 v12.2.10
 	github.com/panjf2000/ants/v2 v2.10.0
 	github.com/panjf2000/gnet/v2 v2.6.3
-	github.com/sirupsen/logrus v1.9.3
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.25.8
 )
@@ -48,6 +47,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/schollz/closestmatch v2.1.0+incompatible // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tdewolff/minify/v2 v2.20.14 // indirect
 	github.com/tdewolff/parse/v2 v2.7.9 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
