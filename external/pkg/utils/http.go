@@ -51,14 +51,14 @@ func NewHttpClientWrapper(domain string, opts ...Option) *HttpClientWrapper {
 	wrapper.client = &http.Client{
 		Timeout: wrapper.timeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 20,
-			IdleConnTimeout:     90 * time.Second,
-			TLSHandshakeTimeout: 5 * time.Second,
+			MaxIdleConns:        50,
+			MaxIdleConnsPerHost: 5, // 降低连接数
+			IdleConnTimeout:     30 * time.Second,
+			TLSHandshakeTimeout: 3 * time.Second,
 			ForceAttemptHTTP2:   true,
 			DialContext: (&net.Dialer{
-				Timeout:   5 * time.Second,
-				KeepAlive: 30 * time.Second,
+				Timeout:   3 * time.Second,
+				KeepAlive: 15 * time.Second,
 			}).DialContext,
 		},
 	}
@@ -67,22 +67,52 @@ func NewHttpClientWrapper(domain string, opts ...Option) *HttpClientWrapper {
 }
 
 func (w *HttpClientWrapper) doWithRetry(req *http.Request) (*http.Response, error) {
-	var resp *http.Response
-	var err error
+	var (
+		resp      *http.Response
+		err       error
+		allErrors []error
+	)
 
 	for i := 0; i <= w.retryTimes; i++ {
+		// 每次重试创建新请求体
+		if req.GetBody != nil {
+			if bodyCopy, err := req.GetBody(); err == nil {
+				req.Body = bodyCopy
+			}
+		}
+
 		resp, err = w.client.Do(req)
 		if err == nil {
+			// 检查服务端错误状态码
+			if resp.StatusCode >= 500 {
+				allErrors = append(allErrors, fmt.Errorf("服务端错误 %d", resp.StatusCode))
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+				continue
+			}
 			return resp, nil
 		}
 
-		if i < w.retryTimes {
-			time.Sleep(w.retryDelay)
-			continue
+		// 记录错误并判断是否重试
+		allErrors = append(allErrors, err)
+		if !isRetriableError(err) {
+			break
 		}
+
+		// 指数退避
+		delay := time.Duration(1<<uint(i)) * w.retryDelay
+		time.Sleep(delay)
 	}
 
-	return nil, fmt.Errorf("请求失败(重试%d次): %v", w.retryTimes, err)
+	return nil, fmt.Errorf("请求失败（共尝试 %d 次）: %v", len(allErrors), allErrors)
+}
+
+func isRetriableError(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout() || netErr.Temporary()
+	}
+	return false
 }
 
 func (w *HttpClientWrapper) Get(api string, header map[string]string, queryParams url.Values, ctx ...context.Context) (*http.Response, error) {
