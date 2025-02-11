@@ -160,19 +160,14 @@ func HandleResponse[T any](response *http.Response) (body T, err error) {
 }
 
 func DoRequest[ResponseStruct any](method, domain, api string, header map[string]string, queryParams url.Values, body []byte, expiredTime ...time.Duration) (resStruct ResponseStruct, err error) {
-	wrapper := NewHttpClientWrapper(domain)
+	var wrapper *HttpClientWrapper
 	if len(expiredTime) > 0 {
-		wrapper.timeout = expiredTime[0]
+		wrapper = NewHttpClientWrapper(domain, WithTimeout(expiredTime[0]))
+	} else {
+		wrapper = NewHttpClientWrapper(domain)
 	}
 
-	ctx := context.Background()
-	if len(expiredTime) > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, expiredTime[0])
-		defer cancel()
-	}
-
-	resp, err := wrapper.request(method, api, header, queryParams, body, ctx)
+	resp, err := wrapper.request(method, api, header, queryParams, body)
 	if err != nil {
 		return
 	}
