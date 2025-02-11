@@ -48,20 +48,7 @@ func NewHttpClientWrapper(domain string, opts ...Option) *HttpClientWrapper {
 		opt(wrapper)
 	}
 
-	wrapper.client = &http.Client{
-		Timeout: wrapper.timeout,
-		Transport: &http.Transport{
-			MaxIdleConns:        50,
-			MaxIdleConnsPerHost: 5, // 降低连接数
-			IdleConnTimeout:     30 * time.Second,
-			TLSHandshakeTimeout: 3 * time.Second,
-			ForceAttemptHTTP2:   true,
-			DialContext: (&net.Dialer{
-				Timeout:   3 * time.Second,
-				KeepAlive: 15 * time.Second,
-			}).DialContext,
-		},
-	}
+	wrapper.client = http.DefaultClient
 
 	return wrapper
 }
