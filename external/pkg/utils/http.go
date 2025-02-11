@@ -47,8 +47,9 @@ func NewHttpClientWrapper(domain string, opts ...Option) *HttpClientWrapper {
 	for _, opt := range opts {
 		opt(wrapper)
 	}
-
-	wrapper.client = http.DefaultClient
+	wrapper.client = &http.Client{
+		Timeout: wrapper.timeout,
+	}
 
 	return wrapper
 }
