@@ -19,24 +19,18 @@ func Template[T interface{}](req Req, handler func() (*gorm.DB, error)) (page Pa
 		return
 	}
 
-	// 使用事务优化查询
-	err = query.Transaction(func(tx *gorm.DB) error {
-		if err = tx.Count(&total).Error; err != nil {
-			return err
-		}
+	countQuery := query.Session(&gorm.Session{NewDB: true}).Limit(-1).Offset(-1)
 
-		if total > 0 {
-			if err = tx.Limit(req.PageSize).Offset((req.PageNum - 1) * req.PageSize).Find(&results).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
+	// 将克隆后的查询作为子查询，统计总数
+	if err = countQuery.Table("(?) as subquery", countQuery).Count(&total).Error; err != nil {
 		return
 	}
-
+	// 应用分页参数到原查询，获取结果
+	if total > 0 {
+		if err = query.Limit(req.PageSize).Offset((req.PageNum - 1) * req.PageSize).Find(&results).Error; err != nil {
+			return
+		}
+	}
 	page = Page[T]{
 		Content:     results,
 		CurrentSize: len(results),
