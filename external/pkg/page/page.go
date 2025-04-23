@@ -42,7 +42,7 @@ func Template[T interface{}](req Req, handler func() (*gorm.DB, error)) (page Pa
 
 type Req struct {
 	PageNum  int `json:"page_num" validate:"required|min:1"`
-	PageSize int `json:"page_size" validate:"required|min:1|max:100"`
+	PageSize int `json:"page_size" validate:"required|min:1|max:100000"`
 }
 
 func (r Req) validate() error {
