@@ -19,10 +19,10 @@ func Template[T interface{}](req Req, handler func() (*gorm.DB, error)) (page Pa
 		return
 	}
 
-	countQuery := query.Session(&gorm.Session{}).Limit(-1).Offset(-1)
-
+	countQuery := query.Session(&gorm.Session{})
+	newQuery := query.Session(&gorm.Session{NewDB: true}).Limit(-1).Offset(-1)
 	// 将克隆后的查询作为子查询，统计总数
-	if err = countQuery.Table("?", countQuery).Count(&total).Error; err != nil {
+	if err = newQuery.Table("?", countQuery).Count(&total).Error; err != nil {
 		return
 	}
 	// 应用分页参数到原查询，获取结果
