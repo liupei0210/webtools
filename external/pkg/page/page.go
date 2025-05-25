@@ -49,8 +49,8 @@ func (r Req) validate() error {
 	if r.PageNum < 1 {
 		return errors.New("页码必须大于0")
 	}
-	if r.PageSize < 1 || r.PageSize > 100 {
-		return errors.New("每页条数必须在1-100之间")
+	if r.PageSize < 1 || r.PageSize > 100000 {
+		return errors.New("每页条数必须在1-100000之间")
 	}
 	return nil
 }
