@@ -270,6 +270,7 @@ func (g *GNetUtil) HandleWsTraffic(c gnet.Conn, handler func(message []byte), ht
 
 	if !ctx.upgraded {
 		if err := ctx.upgrade(c, httpBusinessHandlers...); err != nil {
+			//请求数据过长时可能被nginx代理截断分几次发送
 			if errors.Is(err, io.ErrUnexpectedEOF) {
 				return nil
 			}
