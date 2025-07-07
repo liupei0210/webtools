@@ -33,7 +33,7 @@ type GNetConfig struct {
 	ReadTimeout      time.Duration
 	WriteTimeout     time.Duration
 	HandshakeTimeout time.Duration
-	ReaderSize       int64
+	ReaderSize       int
 }
 
 // GNetUtilOption 配置选项函数类型
@@ -52,7 +52,7 @@ func WithTimeouts(handshake time.Duration) GNetUtilOption {
 		c.HandshakeTimeout = handshake
 	}
 }
-func WithReaderSize(size int64) GNetUtilOption {
+func WithReaderSize(size int) GNetUtilOption {
 	return func(c *GNetConfig) {
 		c.ReaderSize = size
 	}
@@ -187,7 +187,7 @@ func (w *WSContext) upgrade(c gnet.Conn, fs ...func(ctx *WSContext) error) error
 			done <- err
 			return
 		}
-		req, err := http.ReadRequest(bufio.NewReaderSize(bytes.NewReader(peek), 8192))
+		req, err := http.ReadRequest(bufio.NewReaderSize(bytes.NewReader(peek), w.config.ReaderSize))
 		if err != nil {
 			done <- fmt.Errorf("read http request failed: %v", err)
 			return
