@@ -189,7 +189,7 @@ func (w *WSContext) upgrade(c gnet.Conn, fs ...func(ctx *WSContext) error) error
 		}
 		req, err := http.ReadRequest(bufio.NewReaderSize(bytes.NewReader(peek), w.config.ReaderSize))
 		if err != nil {
-			done <- fmt.Errorf("read http request failed: %v", err)
+			done <- err
 			return
 		}
 
@@ -214,7 +214,8 @@ func (w *WSContext) upgrade(c gnet.Conn, fs ...func(ctx *WSContext) error) error
 	select {
 	case err := <-done:
 		if err != nil {
-			return fmt.Errorf("websocket upgrade failed: %v", err)
+			GetLogger().Errorf("websocket upgrade failed: %v", err)
+			return err
 		}
 		w.upgraded = true
 		w.conn = c
@@ -269,6 +270,9 @@ func (g *GNetUtil) HandleWsTraffic(c gnet.Conn, handler func(message []byte), ht
 
 	if !ctx.upgraded {
 		if err := ctx.upgrade(c, httpBusinessHandlers...); err != nil {
+			if errors.Is(err, io.ErrUnexpectedEOF) {
+				return nil
+			}
 			return err
 		}
 	}
