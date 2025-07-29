@@ -20,7 +20,7 @@ const (
 )
 
 // ControllerTemplate is a template function for handling requests with JSON parameters.
-func ControllerTemplate[Params interface{}](ctx iris.Context, binding binding, f func(p Params) (interface{}, error)) {
+func ControllerTemplate[Params interface{}](ctx iris.Context, f func(p Params) (interface{}, error)) {
 	var params Params
 
 	// Parameter parsing
