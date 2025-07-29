@@ -2,12 +2,10 @@ package request
 
 import (
 	"errors"
-	"fmt"
-	"github.com/bravpei/webtools/external/pkg/response"
-	"github.com/bravpei/webtools/external/pkg/utils"
 	"github.com/gookit/validate"
 	"github.com/kataras/iris/v12"
-	"reflect"
+	"github.com/liupei0210/webtools/external/pkg/response"
+	"github.com/liupei0210/webtools/external/pkg/utils"
 )
 
 type binding int8
@@ -26,7 +24,7 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, binding binding, f
 	var params Params
 
 	// Parameter parsing
-	if err := parseParams(ctx, binding, &params); err != nil {
+	if err := ctx.ReadBody(&params); err != nil {
 		utils.GetLogger().Errorf("Failed to parse parameters: %v", err)
 		_ = ctx.JSON(response.Fail(err.Error()))
 		return
@@ -48,33 +46,6 @@ func ControllerTemplate[Params interface{}](ctx iris.Context, binding binding, f
 	}
 
 	_ = ctx.JSON(response.Succeed(data))
-}
-
-func parseParams(ctx iris.Context, binding binding, params interface{}) error {
-	if binding == NoParam || reflect.TypeOf(params) == nil {
-		return nil
-	}
-
-	var err error
-	switch binding {
-	case BodyParam:
-		err = ctx.ReadBody(params)
-	case PathParam:
-		err = ctx.ReadParams(params)
-	case QueryParam:
-		err = ctx.ReadQuery(params)
-	case FormParam:
-		err = ctx.ReadForm(params)
-	case HeaderParam:
-		err = ctx.ReadHeaders(params)
-	default:
-		err = errors.New("unhandled default case")
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to parse %d parameters: %v", binding, err)
-	}
-	return nil
 }
 
 func validateParams(params interface{}) error {
